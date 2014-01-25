@@ -1,5 +1,3 @@
-module RedBlackTrees
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
 ## Red Black balanced tree library ##
@@ -54,9 +52,12 @@ module RedBlackTrees
 #                      -> `Base.size()`
 #
 # * The iterators have been reworked to conform to the 
-# Julia iterator protocol.
-#  
+# Julia iterator protocol. To iterate backwards, use
+# `for i in rbt.Backward(tree) ;; ... ;; end`
+#
 # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+module RedBlackTrees
 
 import Base.in, Base.push!, Base.delete!, 
   Base.length, Base.size,
@@ -82,8 +83,8 @@ RNode{T}(data::T) = RBNode{T}(data, true, link(T))
 type DummyNode{T}
   data::Int
   red::Bool
-  link::Array{RBLNode{T}, 1}
-  DummyNode() = new(0, false, link(Int))
+  link::Array{Any, 1}
+  DummyNode() = new(0, false, {leaf, leaf})
 end
 
 type RedBlackTree{T}
@@ -97,9 +98,7 @@ RedBlackTree(T::DataType) = RedBlackTree{T}(leaf, 0)
 
 typealias RedblackTree RedBlackTree
 
-abstract Direction
-immutable Forward <: Direction; tree::RedBlackTree; end
-immutable Backward <: Direction; tree::RedBlackTree; end
+immutable Backward{T} tree::RedBlackTree{T}; end
 
 const left = 1
 const right = 2
@@ -369,7 +368,7 @@ Base.size(tree::RedBlackTree) = (tree.size,)
 # We use a stateful iterator, and slightly abuse the iterator 
 # protocol in that it `done()` actually advances the pointer
 # (it has to in order to do its job, anyway) and next just
-# just returns the 
+# just returns the current value.
 
 
 type RBTrav{T}
@@ -425,36 +424,27 @@ function move(trav::RBTrav, dir::Int)
   # sleep(0.2)
   # first iteration
   if trav.top == 0
-    # println("First Iteration")
     trav.top = 1
-    if trav.it != leaf
-      # println("Not Leaf $(trav.it.data)")
-      while trav.it.link[otherdir] != leaf
-        # println("Not Leaf loop $(trav.it.data), $(trav.it.link[otherdir].data)")
-        trav.path[trav.top] = trav.it
-        trav.top += 1
-        trav.it = trav.it.link[otherdir]
-      end
-      # println("$(map(tostr, trav.path)) TOP: trav.top")
-    else println("leaf") end
+    while trav.it.link[otherdir] != leaf
+      trav.path[trav.top] = trav.it
+      trav.top += 1
+      trav.it = trav.it.link[otherdir]
+    end
   else
     otherdir = opposite[dir]
     if trav.it.link[dir] != leaf
       # Continue down this branch
-      # println("down forward $(trav.it.data)/$(trav.it.link[dir].data)")
       trav.path[trav.top] = trav.it
       trav.top += 1
       trav.it = trav.it.link[dir]
 
       while trav.it.link[otherdir] != leaf
-        # println("donw backwards  $(trav.it.data)/$(trav.it.link[dir].data)")
         trav.path[trav.top] = trav.it
         trav.top += 1
         trav.it = trav.it.link[otherdir];
       end
     else
       # Move to the next branch
-      # println("move to the next branch +/+ $(tostr(trav.it))")
       local last
 
       while true
@@ -465,7 +455,6 @@ function move(trav::RBTrav, dir::Int)
 
         last = trav.it
         trav.top -= 1
-        # println("TOP: $(trav.top)")
         trav.it = trav.path[trav.top]
         last == trav.it.link[dir] || break
       end 
@@ -478,10 +467,10 @@ end
 # <summary>
 # Initialize a traversal object to the smallest valued node
 # <summary>
-# <param name="direction">A direction wrapper tree that the object will be attached to</param>
+# <param name="tree">The tree to iterate over</param>
 # <returns>An iterator (Trav) object</returns>
-function start(direction::Forward)
-  _start(direction.tree, left); # Min value
+function start{T}(tree::RedblackTree{T})
+  RBTrav{T}(tree) # Min value
 end
 
 # <summary>
@@ -489,18 +478,18 @@ end
 # <summary>
 # <param name="direction">A direction wrapper tree that the object will be attached to</param>
 # <returns>An iterator (Trav) object</returns>
-function start(direction::Backward)
-  _start(direction.tree, right) # Max value
+function start{T}(direction::Backward{T})
+  RBTrav{T}(direction.tree) # Max value
 end
 
 # <summary>
 # Determine whether there's more data to ierate over. in ascending order.
 # If it is the case, move the iterator forward.
 # <summary>
-# <param name="">A direction wrapper over a tree</param>
+# <param name="">A tree object/param>
 # <param name="trav">An iterator object</param>
 # <returns>true if there's more data, false otherwise</returns>
-function done(::Forward, trav::RBTrav)
+function done{T}(::RedBlackTree{T}, trav::RBTrav)
   move(trav, right) # Toward larger items
 end
 
@@ -508,7 +497,7 @@ end
 # Determine whether there's more data to iterate over. in descending order. 
 # If it is the case, move the iterator backward
 # <summary>
-# <param name="">A direction wrapper over a tree</param>
+# <param name="">A backward wrapper over a tree</param>
 # <param name="trav">An iterator object</param>
 # <returns>true if there's more data, false otherwise</returns>
 function done(::Backward, trav::RBTrav)
@@ -523,7 +512,11 @@ end
 # </param>
 # <param name="trav">An iterator object</param>
 # <returns>The current value</returns>
-function next (::Direction, trav::RBTrav)
+function next (::RedBlackTree, trav::RBTrav)
+  trav.it.data, trav
+end
+
+function next (::Backward, trav::RBTrav)
   trav.it.data, trav
 end
 
@@ -713,7 +706,7 @@ end
 import Base.show
 
 function show(io::IO, tree::RedBlackTree)
-  print(io, "$(typeof(tree))")
+  print(io, "{$(typeof(tree)) length=$(length(tree))")
   # root = tree.root
   # height = int(ceil(log(2, tree.size + 1)))
   # acc = {}
@@ -749,12 +742,10 @@ function show(io::IO, tree::RedBlackTree)
   #   println("")
   # end
   # for i = 1:length(acc)
-  #   buf = {}
   #   space = max(height - i + 1, 1)
-  #   push!(buf, repeat("  ", (space)^2))
-  #   push!(buf, join(acc[i], repeat("       ", space)[1:end-3]))
-  #   push!(buf, "\n")
-  #   println(join(buf))
+  #   print(io, repeat("  ", (space)^2))
+  #   print(io, join(acc[i], repeat("       ", space)[1:end-3]))
+  #   print(io, "\n")
   # end
 end
 
