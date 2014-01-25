@@ -302,7 +302,7 @@ function delete!{T}(tree::RedBlackTree{T}, data::T)
           s = p.link[opposite[last]];
 
           if s != leaf
-            if !( isred(s.link[opposite[last]]) || isred(s.link[last]) )
+            if !( isred(s.link[left]) || isred(s.link[right]) )
               # Color flip
               p.red = false
               s.red = true
@@ -422,35 +422,30 @@ function move(trav::RBTrav, dir::Int)
       trav.top += 1
       trav.it = trav.it.link[otherdir]
     end
-  else
-    otherdir = opposite[dir]
-    if trav.it.link[dir] != leaf
-      # Continue down this branch
+  elseif trav.it.link[dir] != leaf
+    # Continue down this branch
+    trav.path[trav.top] = trav.it
+    trav.top += 1
+    trav.it = trav.it.link[dir]
+
+    while trav.it.link[otherdir] != leaf
       trav.path[trav.top] = trav.it
       trav.top += 1
-      trav.it = trav.it.link[dir]
-
-      while trav.it.link[otherdir] != leaf
-        trav.path[trav.top] = trav.it
-        trav.top += 1
-        trav.it = trav.it.link[otherdir];
-      end
-    else
-      # Move to the next branch
-      local last
-
-      while true
-        if trav.top == 1
-          trav.it = leaf
-          break
-        end
-
-        last = trav.it
-        trav.top -= 1
-        trav.it = trav.path[trav.top]
-        last == trav.it.link[dir] || break
-      end 
+      trav.it = trav.it.link[otherdir];
     end
+  else
+    # Move to the next branch
+    while true
+      if trav.top == 1
+        trav.it = leaf
+        break
+      end
+
+      last = trav.it
+      trav.top -= 1
+      trav.it = trav.path[trav.top]
+      last == trav.it.link[dir] || break
+    end 
   end
 
   return trav.it == leaf
