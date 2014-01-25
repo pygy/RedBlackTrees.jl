@@ -706,7 +706,7 @@ end
 import Base.show
 
 function show(io::IO, tree::RedBlackTree)
-  print(io, "{$(typeof(tree)) length=$(length(tree))")
+  print(io, "{$(typeof(tree)) length=$(length(tree))}")
   # root = tree.root
   # height = int(ceil(log(2, tree.size + 1)))
   # acc = {}
