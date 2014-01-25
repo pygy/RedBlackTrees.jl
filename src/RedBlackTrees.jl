@@ -110,9 +110,6 @@ macro diff2side(n) :( ($(esc(n)) + 3) >> 1 ) end
 
 link(T::Type) = RBLNode{T}[leaf, leaf]
 
-# pseudo-pointer: don = Done(); don.e == false # :-)
-type Done; e::Bool; Done() = new(false); end
-
 # ???
 copy(x) = x
 
