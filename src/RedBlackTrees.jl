@@ -343,7 +343,7 @@ function delete!{T}(tree::RedBlackTree{T}, data::T)
 
     tree.size -= 1
   end
-  data
+  tree
 end
 
 # <summary>
